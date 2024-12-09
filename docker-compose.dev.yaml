@@ -1,0 +1,11 @@
+version: '3'
+services:
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=medimyth
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=arnab
+    ports:
+      - "5432:5432"
