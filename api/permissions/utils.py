@@ -26,7 +26,7 @@ def get_permission(document_id, user_id=None):
                 query = query.where(Permissions.user_id == user_id)
             query = query.with_for_update()
             permission_info = session.scalars(query).all()
-            data = [{"permission":str(permission.permission),"type":str(permission.type),"user_id":permission.user_id} for permission in permission_info]
+            data = [{"permission":permission.permission.value,"type":permission.type.value,"user_id":permission.user_id} for permission in permission_info]
             return data, False
     except Exception as e:
         print(e)

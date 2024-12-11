@@ -50,8 +50,8 @@ def test_get_permission(session):
     permissions, error = get_permission("doc1", "user1")
     assert error is False
     assert permissions[0]["user_id"] == "user1"
-    assert str(permissions[0]["permission"]) == str(Permission.READ)
-    assert str(permissions[0]["type"]) == str(Type.FEEDBACK)
+    assert permissions[0]["permission"].value == Permission.READ.value
+    assert permissions[0]["type"].value == str(Type.FEEDBACK)
 
     # Test non-existent permission
     permissions, error = get_permission("non_existent_doc", "user1")
