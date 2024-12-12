@@ -1,0 +1,41 @@
+name: Running database migration
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  run_migration:
+    runs-on: ubuntu-latest
+
+    env:
+      DB_URL: ${{ secrets.DB_URL }}
+
+    steps:
+      # Checking out the code from our project to the runner
+    -   name: Checkout the code
+        uses: actions/checkout@v3
+
+    -   name: Setup python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+
+    -   name: Checking python version
+        run: python -c "import sys; print(sys.version)"
+
+    -   name: Install dependencies
+        run: |
+          pip install virtualenv
+          virtualenv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+    
+    -   name: Making the script runnable
+        run: chmod +x ./run_migration.sh
+
+    -   name: Run Alembic Migrations
+        run: |
+          ./run_migration.sh
