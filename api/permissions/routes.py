@@ -7,8 +7,8 @@ from .utils import create_permission,get_permission,delete_permission
 @permission_router.post("/")
 def create():
     data = request.json
-    permission_data = schama_error_serialiser(PermissionsListSchema,**data)
     try:
+        permission_data = schama_error_serialiser(PermissionsListSchema,**data)
         if not permission_data:
             return api_response(False,message="Invalid payload",status=400)
         status = create_permission(permission_data.get("permissions"))

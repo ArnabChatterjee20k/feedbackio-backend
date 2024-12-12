@@ -1,6 +1,6 @@
 from api.db import Session
 from .model import Permissions
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 
 def create_permission(permissions: dict):
@@ -16,18 +16,27 @@ def create_permission(permissions: dict):
                 print(e)
                 return False
 
-
+# we cant lock rows(for update) during aggregations
 def get_permission(document_id, user_id=None):
     try:
         with Session() as session:
-            query = select(Permissions).where(
-                Permissions.document_id == document_id)
-            if user_id:
-                query = query.where(Permissions.user_id == user_id)
-            query = query.with_for_update()
-            permission_info = session.scalars(query).all()
-            data = [{"permission":permission.permission.value,"type":permission.type.value,"user_id":permission.user_id} for permission in permission_info]
-            return data, False
+            with session.begin():
+                query = (
+                    select(Permissions.user_id,
+                        func.array_agg(Permissions.permission).label("permissions"))
+                    .where(Permissions.document_id == document_id)
+                )
+                if user_id:
+                    query = query.where(Permissions.user_id == user_id)
+                query = query.group_by(Permissions.user_id)
+                # using execute as we need multiple columns
+                permission_info = session.execute(query).all()
+                permission_data = [
+                    {"user_id": permission.user_id,
+                    "permissions": [perm.value for perm in permission.permissions]}
+                    for permission in permission_info
+                ]
+                return permission_data, False
     except Exception as e:
         print(e)
         return None, True
@@ -49,7 +58,7 @@ def delete_permission(permission: dict):
                 return False, "permission does not exists"
             session.delete(permission_row)
             session.commit()
-            return True,None
+            return True, None
     except Exception as e:
         print(e)
         return False, "Some error occured"
