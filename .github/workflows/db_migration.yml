@@ -34,8 +34,8 @@ jobs:
           pip install -r requirements.txt
     
     -   name: Making the script runnable
-        run: chmod +x ./run_migration.sh
+        run: chmod +x ./scripts/run_migration.sh
 
     -   name: Run Alembic Migrations
         run: |
-          ./run_migration.sh
+          ./scripts/run_migration.sh
