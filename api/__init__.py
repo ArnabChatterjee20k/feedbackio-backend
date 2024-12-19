@@ -15,8 +15,9 @@ def create_api():
     })
 
     from .permissions import permission_router
+    from .form_it import form_it_router
     app.register_blueprint(permission_router)
-    
+    app.register_blueprint(form_it_router)
     @app.get("/")
     def health_check():
         return "Running great", 200
@@ -28,7 +29,8 @@ def create_api():
         # function name
         if endpoint in ["health_check"]:
             return
-        if is_valid_request():
+        if os.environ.get("AUTH_TOKEN_DISABLED")=="TRUE" or is_valid_request():
             return
         return Forbidden()
+    create_models()
     return app

@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import os
-load_dotenv(".env")
+load_dotenv(".env",override=True)
 from api import create_api
 app = create_api()
 app.config["DEBUG"] = bool(os.environ.get("PROD")!="1")
