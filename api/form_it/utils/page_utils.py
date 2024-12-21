@@ -1,4 +1,4 @@
-from ..schema import PageSchema
+from ..schema import PageSerialiserSchema
 from ..model import Page
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ def transform_to_kv(data):
 
 # a json of fields will be supplied here with the field id from the api itself to track that down
 # use the page count to detect page deleted
-def update_pages(session, pages:dict, form_id: str):
+def update_pages(session:Session, pages:dict, form_id: str):
     try:
         transformed = []
         for idx, page in enumerate(pages):
@@ -45,10 +45,11 @@ def update_pages(session, pages:dict, form_id: str):
 def get_pages(session:Session, form_id):
     try:
         print(form_id)
-        query = select(Page).where(Page.form_id == form_id)
+        query = select(Page).where(Page.form_id == form_id).order_by(Page.page_order)
         result = session.execute(query).all()
-        return [PageSchema.model_validate(page[0],from_attributes=True).model_dump() for page in result]
+        return [PageSerialiserSchema.model_validate(page[0],from_attributes=True).model_dump() for page in result]
 
     except Exception as e:
         print(e)
+        session.rollback()
         return None

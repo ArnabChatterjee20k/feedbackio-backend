@@ -1,8 +1,10 @@
 from pydantic import BaseModel,ValidationError
 from flask import request
 from werkzeug.exceptions import Forbidden
-from typing import Optional
+from typing import Optional,Tuple
 from functools import wraps
+from sqlalchemy.sql import Select
+from sqlalchemy.orm import Session
 import os
 def schama_error_serialiser(Schema:BaseModel,user=False,*args,**kwargs) -> Optional[dict]:
     try:
@@ -49,3 +51,27 @@ def validate_user(f):
             return api_response(success=False, message="X-AUTH-ID not present", status=403)
         return f(*args, **kwargs)  # Pass along the arguments to the decorated function
     return inner
+
+def get_ip():
+    ip = request.headers.get("X-USER-IP")
+    if not ip:
+        return None
+    return ip    
+
+def validate_ip(f):
+    @wraps(f)
+    def inner(*args, **kwargs):
+        ip = get_ip()
+        if not ip:
+            return api_response(success=False, message="X-USER-IP not present", status=403)
+        return f(*args, **kwargs)  # Pass along the arguments to the decorated function
+    return inner
+
+def get_paginated_data(session:Session,query:Select[Tuple],page=1,limit=50):
+    try:
+        offset_value = (page - 1) * limit
+        paginated_query = query.offset(offset_value).limit(limit)
+        return session.execute(paginated_query).all()
+    except Exception as e:
+        print("Error generating paginated data ",e)
+        return None

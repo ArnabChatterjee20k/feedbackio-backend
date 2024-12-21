@@ -41,6 +41,8 @@ class PageSchema(BaseModel):
         from_attributes = True
         arbitrary_types_allowed = True
 
+class PageSerialiserSchema(PageSchema):
+    page_order:int
 
 class Pages(BaseModel):
     pages: List[PageSchema]
@@ -66,7 +68,11 @@ class FormSchema(BaseModel):
 
 
 class Submission(BaseModel):
-    formId: Union[int,str]
-    data: Dict[str, str]
+    submission_data: Dict[str, str]
     user_id:Optional[str]=None
     ip:str
+
+
+class SubmissionQueryParamsSchema(BaseModel):
+    page:Optional[int] = 1
+    limit:Optional[int] = 50
