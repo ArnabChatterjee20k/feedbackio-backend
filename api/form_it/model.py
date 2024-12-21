@@ -1,9 +1,15 @@
 from datetime import datetime
 from typing import Optional
 from api.db import Base
-from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import MappedColumn, mapped_column, relationship
+import enum
+
+
+class Layout(enum.Enum):
+    PAGE = "page"
+    CARD = "card"
 
 
 class Form(Base):
@@ -11,8 +17,13 @@ class Form(Base):
 
     id: MappedColumn[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True)
+
     form_id: MappedColumn[str] = mapped_column(
         String, unique=True, nullable=False)
+
+    user_id: MappedColumn[str] = mapped_column(
+        String, unique=True, nullable=False)
+
     name: MappedColumn[str] = mapped_column(String(100), nullable=False)
 
     created_at: MappedColumn[datetime] = mapped_column(
@@ -20,10 +31,8 @@ class Form(Base):
     close_date: MappedColumn[Optional[datetime]
                              ] = mapped_column(DateTime, nullable=True)
 
-    pages_count: MappedColumn[int] = mapped_column(Integer, nullable=False)
-
     layout: MappedColumn[str] = mapped_column(
-        String(10), nullable=True)  # Page Forms, Survey forms
+        Enum(Layout), nullable=True, default=Layout.PAGE)  # Page Forms, Survey forms
 
     auth_required: MappedColumn[bool] = mapped_column(
         Boolean, nullable=False, default=False)

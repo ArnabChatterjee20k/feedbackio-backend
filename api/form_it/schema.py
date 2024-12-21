@@ -53,6 +53,7 @@ class Pages(BaseModel):
 class FormSchema(BaseModel):
     name: str
     form_id:str
+    user_id:str
     close_date: Optional[datetime] = None
     auth_required:Optional[bool] = False
     ip_required:Optional[bool] = False

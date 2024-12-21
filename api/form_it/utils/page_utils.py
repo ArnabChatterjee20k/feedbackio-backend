@@ -1,6 +1,7 @@
 from ..schema import PageSchema
 from ..model import Page
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 from sqlalchemy.dialects import postgresql
 
 import random
@@ -20,6 +21,7 @@ def transform_to_kv(data):
 
 
 # a json of fields will be supplied here with the field id from the api itself to track that down
+# use the page count to detect page deleted
 def update_pages(session, pages:dict, form_id: str):
     try:
         transformed = []
@@ -40,7 +42,13 @@ def update_pages(session, pages:dict, form_id: str):
         return False
 
 
-def get_pages(self, form_id):
-    query = select(Page).where(Page.form_id == form_id)
-    result = self.session.execute(query).all()
-    return [PageSchema.model_validate(page) for page in result]
+def get_pages(session:Session, form_id):
+    try:
+        print(form_id)
+        query = select(Page).where(Page.form_id == form_id)
+        result = session.execute(query).all()
+        return [PageSchema.model_validate(page[0],from_attributes=True).model_dump() for page in result]
+
+    except Exception as e:
+        print(e)
+        return None
