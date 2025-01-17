@@ -22,7 +22,6 @@ def create_api():
     def health_check():
         return "Running great", 200
 
-    create_models()
     @app.before_request
     def check_validity():
         endpoint = request.endpoint
