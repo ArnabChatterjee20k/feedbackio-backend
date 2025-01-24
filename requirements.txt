@@ -1,10 +1,13 @@
 alembic==1.14.0
+annotated-types==0.7.0
+asyncpg==0.30.0
 blinker==1.9.0
 click==8.1.7
 flask==3.1.0
 flask-cors==5.0.0
 greenlet==3.1.1
 gunicorn==23.0.0
+h11==0.14.0
 iniconfig==2.0.0
 itsdangerous==2.2.0
 jinja2==3.1.4
@@ -13,9 +16,11 @@ markupsafe==3.0.2
 packaging==24.2
 pluggy==1.5.0
 psycopg2-binary==2.9.10
-pydantic==1.10.19
+pydantic==2.10.3
+pydantic-core==2.27.1
 pytest==8.3.4
 python-dotenv==1.0.1
 sqlalchemy==2.0.36
 typing-extensions==4.12.2
+uvicorn==0.34.0
 werkzeug==3.1.3

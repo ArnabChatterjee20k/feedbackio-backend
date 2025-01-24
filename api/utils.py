@@ -23,6 +23,8 @@ def api_response(success:bool,data=None,message="",status=200):
 
 
 def is_valid_request():
+    if bool(os.environ.get("PROD")!="1"):
+        return True
     token = request.headers.get("X-FEEDBACK-AUTH-TOKEN")
     print(token,os.environ.get("X-FEEDBACK-AUTH-TOKEN"))
     if not token:
