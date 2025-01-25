@@ -5,7 +5,7 @@ from .model import PageVisit, Space
 from sqlalchemy import select
 
 
-async def record_page_visit(session: AsyncSession, payload: PageVisitSchema):
+async def create_page_visit(session: AsyncSession, payload: PageVisitSchema):
     visit = PageVisit(**payload)
     session.add(visit)
 
@@ -17,16 +17,10 @@ async def get_space(session: AsyncSession, space_id) -> Space:
 
 
 async def create_space(session: AsyncSession, space_type: SpaceType, space_id) -> Space:
-    with session:
-        metadata = FeedbackSpaceMetadata()
+    async with session.begin_nested():
+        metadata = FeedbackSpaceMetadata().model_dump(mode="json")
         space = Space(space_id=space_id, space_metadata=metadata,
-                      space_type=space_type)
+                        space_type=space_type)
         session.add(space)
-        await session.commit(space)
-        return space
-
-
-# async def get_or_create_space(session: AsyncSession, space_id, type: SpaceType) -> Space:
-#     space = await get_space(session, space_id)
-#     if not space:
-#         return create_feedback_space()
+    await session.refresh(space)
+    return space

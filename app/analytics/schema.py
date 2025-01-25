@@ -18,7 +18,7 @@ class PageVisitSchema(BaseModel):
     space_id:str
     user_id:Optional[int] = None
     page_type:PageType
-    ip:str
+    ip_address:str
     country:str
     browser:str
     os:str

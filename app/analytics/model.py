@@ -32,6 +32,9 @@ class PageVisit(Base):
     os = Column(String(50), nullable=True, default=UNKNOWN_DATA)
     visited_at = Column(DateTime, default=datetime.now)
 
+    @hybrid_property
+    def is_user_loggedin(self) -> bool:
+        return bool(self.user_id)
 
 class FeedbackSubmission(Base):
     __tablename__ = "feedback_submission"
