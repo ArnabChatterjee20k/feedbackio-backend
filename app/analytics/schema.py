@@ -12,20 +12,27 @@ UNKNOWN_DATA = "unknown"
 
 class Event(Enum):
     VISIT = "visit"
-    FEEDBACK_SUBMISSION = "submission"
+    SUBMIT = "submit"
 
-class PageVisitSchema(BaseModel):
-    space_id:str
-    user_id:Optional[int] = None
-    page_type:PageType
+class RequestMetadata(BaseModel):
     ip_address:str
     country:str
     browser:str
     os:str
 
+class PageVisitSchema(RequestMetadata):
+    space_id:str
+    user_id:Optional[int] = None
+    page_type:PageType
 
 class FeedbackSpaceMetadata(BaseModel):
     sentiment:Optional[float] = 0.0
     landing_page_visit:Optional[int] = 0
     wall_of_fame_visit:Optional[int] = 0
     total_feedback:Optional[int] = 0
+
+class FeedbackSubmissionSchema(RequestMetadata):
+    space_id:str
+    user_id:Optional[int] = None
+    feedback:str
+    feedback_id:str
