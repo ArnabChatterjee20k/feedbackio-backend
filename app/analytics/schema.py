@@ -15,6 +15,7 @@ class Event(Enum):
     SUBMIT = "submit"
 
 class RequestMetadata(BaseModel):
+    event:Event
     ip_address:str
     country:str
     browser:str

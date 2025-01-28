@@ -12,13 +12,17 @@ from app.logger import get_logger
 
 
 def get_schema(
-    event: Event = Query(..., description="Event type to determine schema"),
     payload: dict = Body(...)
 ) -> BaseModel:
     try:
-        if event == Event.VISIT:
+        event = payload.get("event")
+        if not event:
+            raise HTTPException(
+                status_code=400, detail=f"Event type not provided")
+        if event == Event.VISIT.value:
+            print(payload)
             return PageVisitSchema(**payload)
-        elif event == Event.SUBMIT:
+        elif event == Event.SUBMIT.value:
             return FeedbackSubmissionSchema(**payload)
         else:
             raise HTTPException(
@@ -32,9 +36,12 @@ Payload = Annotated[BaseModel, Depends(get_schema)]
 logger = get_logger()
 
 # example -> /<resource>?event=visit =>/feedback?event=visit
+
+
 @analytics_router.post("/feedback")
-async def create_feedback_analytics(session: DBSessionDep, event: Event, payload: Payload):
+async def create_feedback_analytics(session: DBSessionDep, payload: Payload):
     try:
+        event = payload.event
         if event == Event.VISIT:
             """
                 space metadata update ; {visit+=1}
@@ -49,7 +56,8 @@ async def create_feedback_analytics(session: DBSessionDep, event: Event, payload
                 elif data.page_type == PageType.WALL_OF_FAME:
                     space_metadata.wall_of_fame_visit += 1
                 space.space_metadata = space_metadata.model_dump()
-                await create_page_visit(session, data.model_dump())
+                new_payload = {key: value for key, value in data.model_dump().items() if key != "event"}
+                await create_page_visit(session, new_payload)
                 await session.commit()
 
         elif event == Event.SUBMIT:
@@ -70,15 +78,16 @@ async def create_feedback_analytics(session: DBSessionDep, event: Event, payload
                 space.space_metadata = space_metadata.model_dump()
 
                 new_payload = {
-                    key: value for key, value in data.model_dump().items() if key != "feedback"}
+                    key: value for key, value in data.model_dump().items() if key not in ("feedback","event")}
                 new_payload["sentiment_score"] = feedback_sentiment_score
                 await create_feedback_submission(session, new_payload)
                 await session.commit()
-                return JSONResponse({"success":True,"sentiment":feedback_sentiment_score},201)
-        return JSONResponse({"success":True},201)
+                return JSONResponse({"success": True, "sentiment": feedback_sentiment_score}, 201)
+        return JSONResponse({"success": True}, 201)
     except Exception as e:
         logger.error(f"{event}", e)
-        return JSONResponse({"success":False},500)
+        return JSONResponse({"success": False}, 500)
+
 
 @analytics_router.get("/feedback")
 async def get_feedback_analytics(session: DBSessionDep, event: Event):
