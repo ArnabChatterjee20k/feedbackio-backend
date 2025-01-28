@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .model import PageVisit, Space, FeedbackSubmission
 from sqlalchemy import select
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from sqlalchemy.dialects.postgresql import insert
 
 
 def calculate_new_avg(previous_avg_score, observations, new_score) -> float:
@@ -20,6 +21,7 @@ def get_sentiment_score(text: str) -> float:
     sentiment = analyser.polarity_scores(text)
     return sentiment["compound"]
 
+
 async def create_page_visit(session: AsyncSession, payload):
     visit = PageVisit(**payload)
     session.add(visit)
@@ -31,7 +33,7 @@ async def create_feedback_submission(session: AsyncSession, payload):
 
 
 async def get_space(session: AsyncSession, space_id) -> Space:
-    query = select(Space).where(Space.space_id == space_id)
+    query = select(Space).where(Space.space_id == space_id).with_for_update()
     space = (await session.execute(query)).scalar()
     return space
 
@@ -39,13 +41,16 @@ async def get_space(session: AsyncSession, space_id) -> Space:
 async def create_space(session: AsyncSession, space_type: SpaceType, space_id) -> Space:
     async with session.begin_nested():
         metadata = FeedbackSpaceMetadata().model_dump(mode="json")
-        space = Space(space_id=space_id, space_metadata=metadata,
-                      space_type=space_type)
-        session.add(space)
-    await session.refresh(space)
-    return space
+        insert_stmt = insert(Space).values(space_id=space_id, space_metadata=metadata,
+                                                 space_type=space_type)
+        upsert = insert_stmt.on_conflict_do_nothing(index_elements=[Space.space_id])
+        await session.execute(upsert)
+        
+        query = select(Space).where(Space.space_id==space_id)
+        space = (await session.execute(query)).scalar_one_or_none()
+        return space
 
-async def get_or_create_space(session:AsyncSession, space_id: str):
+async def get_or_create_space(session: AsyncSession, space_id: str):
     space = await get_space(session, space_id)
     if not space:
         space = await create_space(session, SpaceType.FEEDBACK, space_id)

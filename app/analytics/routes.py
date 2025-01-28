@@ -85,7 +85,7 @@ async def create_feedback_analytics(session: DBSessionDep, payload: Payload):
                 return JSONResponse({"success": True, "sentiment": feedback_sentiment_score}, 201)
         return JSONResponse({"success": True}, 201)
     except Exception as e:
-        logger.error(f"{event}", e)
+        logger.exception(e)
         return JSONResponse({"success": False}, 500)
 
 
