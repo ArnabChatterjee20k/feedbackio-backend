@@ -62,8 +62,50 @@ async def get_or_create_space(session: AsyncSession, space_id: str):
         space = await create_space(session, SpaceType.FEEDBACK, space_id)
     return space
 
+def parse_start_end(start:datetime,end:datetime):
+    date_difference = abs(start-end).days
+    if date_difference == 0:
+        end = start + timedelta(hours=24)
+
+    if start > end:
+        end = start + timedelta(hours=24)
+
+    # data will not be shown more than 30 days
+    if date_difference > 30:
+        end = start + timedelta(days=30)
+
+    return start,end
+
+# for getting browsers,countires,etc especially the metadatas
+async def get_analytics_metadata(Model, *filters):
+    METADATA_KEYS=["country", "browser", "os"]
+    date_check = and_(*filters)
+    async def get_data(group_by_column):
+        async with sessionmanager.session() as session:
+            query = select(group_by_column, func.count(group_by_column))
+            if filters:
+                query = query .where(date_check)
+            query = query.group_by(group_by_column)
+            result = await session.execute(query)
+            response = {}
+            for col, val in result.all():
+                response[col] = val
+
+            return response
+    
+    queries = []
+    for metadata in METADATA_KEYS:
+        property = getattr(Model,metadata,None)
+        if property:
+            queries.append(get_data(property))
+    if not queries:
+        return []
+    data = await asyncio.gather(*queries)
+    return data
+
 
 async def get_feedback_submission_between_range(space_id: str, start: datetime, end: datetime):
+    start,end = parse_start_end(start,end)
     async with sessionmanager.session() as session:
         date_casted_created_at_col = func.cast(
             FeedbackSubmission.created_at, DATE)
@@ -93,16 +135,7 @@ async def get_feedback_submission_metadata(space_id: str, start: datetime, end: 
         So each individual requests should use a separate
         That's why feedback_data is having their separate session instance
     """
-    date_difference = abs(start-end).days
-    if date_difference == 0:
-        end = start + timedelta(hours=24)
-
-    if start > end:
-        end = start + timedelta(hours=24)
-
-    # data will not be shown more than 30 days
-    if date_difference > 30:
-        end = start + timedelta(days=30)
+    start,end = parse_start_end(start,end)
 
     # Date range filter
     date_casted_created_at_col = func.cast(FeedbackSubmission.created_at, DATE)
@@ -112,23 +145,6 @@ async def get_feedback_submission_metadata(space_id: str, start: datetime, end: 
         date_casted_created_at_col <= end
     )
 
-    async def get_feedback_data(group_by_column):
-        async with sessionmanager.session() as session:
-            query = select(group_by_column, func.count(group_by_column))\
-                .where(date_check)\
-                .group_by(group_by_column)
-
-            result = await session.execute(query)
-            response = {}
-            for col, val in result.all():
-                response[col] = val
-
-            return response
-
-    countries, browsers, os = await asyncio.gather(
-        get_feedback_data(FeedbackSubmission.country),
-        get_feedback_data(FeedbackSubmission.browser),
-        get_feedback_data(FeedbackSubmission.os)
-    )
+    countries, browsers, os = await get_analytics_metadata(FeedbackSubmission,date_check)
 
     return {"countries": countries, "browsers": browsers, "os": os}
