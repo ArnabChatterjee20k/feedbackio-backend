@@ -1,5 +1,12 @@
 ### Analytics jist and my main thinking
 
+* Event driven rather than session driven
+* Event driven means for every event a http request will be made
+* Session driven means a recording of a session would be done by constant http updates 
+or during feedback submission will be sending a request when form opened and when submission completed another http request leading to knowing people opening and actually completing
+* Heat maps or click maps can be tracked using the session driven only. To validate a single session cookies can be used.
+* Here only calculations and logs need to be generated thats why event driven method is chose as no constant tracking is required
+
 space -> feedback, poll, form
 
 ### space(for numerical data)
