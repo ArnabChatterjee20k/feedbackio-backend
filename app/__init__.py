@@ -53,6 +53,13 @@ def create_app():
             )
 
         return await call_next(request)
+
+    @app.exception_handler(ValueError)
+    async def handle_value_error(request:Request,exc:ValueError):
+        return JSONResponse(
+            status_code=400,
+            content={"message": str(exc)},
+        )
     # include the fast api first
     app.include_router(router=analytics_router,prefix="/analytics")
     app.mount("/", WSGIMiddleware(flask_app))

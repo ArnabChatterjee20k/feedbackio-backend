@@ -46,3 +46,13 @@ https://www.youtube.com/watch?v=1z8LLSZSWHM
 
 ### Async setup of sqlalchemy
 https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
+
+
+### Concurrency issues of sqlalchemy shared sessions
+https://readmedium.com/how-to-use-sqlalchemy-to-make-database-requests-asynchronously-e90a4c8c11b1
+
+### Behaviour scalars in sqlalchemy
+* If we select particular columns like this select(Model.id,Model.db) then .scalars().all() return the list of first col in the row that is Model.id.
+So use .all() and it will return a Row() which is a tuple. Here we have to use indexing to get the data
+
+* If we select the entire object select(Model) then .scalars().all() will give list of the Model and we directly extract properties by dot(.)

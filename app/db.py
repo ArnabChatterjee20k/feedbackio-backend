@@ -32,7 +32,7 @@ class DBSessionManager:
 
 
 database_url = os.environ.get("ASYNC_DB_URL")
-sessionmanager = DBSessionManager(database_url, {"echo": True})
+sessionmanager = DBSessionManager(database_url, {"echo": False})
 
 
 async def get_db_session():

@@ -1,15 +1,15 @@
 import asyncio
 from fastapi import Depends, Query, Body, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse,Response
 from typing import Annotated
 from pydantic import BaseModel
 from . import analytics_router
 from app.db import DBSessionDep
 from .schema import Event, PageVisitSchema
-from .schema import PageVisitSchema, Event, SpaceType, FeedbackSpaceMetadata, PageType, FeedbackSubmissionSchema
-from .utils import get_or_create_space, create_page_visit, create_feedback_submission, get_sentiment_score, calculate_new_avg
+from .schema import PageVisitSchema, Event, SpaceType, FeedbackSpaceMetadata, PageType, FeedbackSubmissionSchema,AnalyticsFilterQuery
+from .utils import get_or_create_space, create_page_visit, create_feedback_submission, get_sentiment_score, calculate_new_avg, get_space , get_feedback_submission_between_range,get_feedback_submission_metadata
 from app.logger import get_logger
-
+from datetime import datetime
 
 def get_schema(
     payload: dict = Body(...)
@@ -56,7 +56,8 @@ async def create_feedback_analytics(session: DBSessionDep, payload: Payload):
                 elif data.page_type == PageType.WALL_OF_FAME:
                     space_metadata.wall_of_fame_visit += 1
                 space.space_metadata = space_metadata.model_dump()
-                new_payload = {key: value for key, value in data.model_dump().items() if key != "event"}
+                new_payload = {
+                    key: value for key, value in data.model_dump().items() if key != "event"}
                 await create_page_visit(session, new_payload)
                 await session.commit()
 
@@ -78,7 +79,7 @@ async def create_feedback_analytics(session: DBSessionDep, payload: Payload):
                 space.space_metadata = space_metadata.model_dump()
 
                 new_payload = {
-                    key: value for key, value in data.model_dump().items() if key not in ("feedback","event")}
+                    key: value for key, value in data.model_dump().items() if key not in ("feedback", "event")}
                 new_payload["sentiment_score"] = feedback_sentiment_score
                 await create_feedback_submission(session, new_payload)
                 await session.commit()
@@ -89,6 +90,38 @@ async def create_feedback_analytics(session: DBSessionDep, payload: Payload):
         return JSONResponse({"success": False}, 500)
 
 
-@analytics_router.get("/feedback")
-async def get_feedback_analytics(session: DBSessionDep, event: Event):
-    return event.value
+@analytics_router.get("/feedback/{space_id}")
+async def get_feedback_analytics(session: DBSessionDep, space_id: str,query:Annotated[AnalyticsFilterQuery,Depends(AnalyticsFilterQuery)]):
+    event = query.event
+    query_payload = query.model_dump()
+    start = query_payload.get("start")
+    end = query_payload.get("end")
+
+    try:
+        if not event:
+            """
+                In case of analytics the reads can be dirty or a bit non updated as well as we dont need real time data to show
+            """
+
+            space = await get_space(session, space_id=space_id, lock=False)
+            if not space:
+                return Response(status_code=404)
+
+            return ({"success": True, "data": space.space_metadata})
+        if event == Event.VISIT:
+            pass
+
+        if event == Event.SUBMIT:
+            # shared session can't be used with concurrent requests in sqlalchemy
+            # so the functions below are using their separate db sessions
+            feedbacks = get_feedback_submission_between_range(space_id,start,end)
+            feedbacks_metadata = get_feedback_submission_metadata(space_id,start,end)
+
+            feedbacks,feedbacks_metadata = await asyncio.gather(
+                feedbacks,
+                feedbacks_metadata
+            )
+            return JSONResponse({"feedbacks":feedbacks,"metadata":feedbacks_metadata},status_code=200)
+    except Exception as e:
+        logger.exception(e)
+        return
