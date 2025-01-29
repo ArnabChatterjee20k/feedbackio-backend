@@ -1,6 +1,5 @@
 import asyncio
 from .schema import PageType, PageVisitSchema, FeedbackSpaceMetadata, SpaceType, DATETIME_FORMAT
-from .model import PageVisit
 from app.db import sessionmanager
 from sqlalchemy.ext.asyncio import AsyncSession
 from .model import PageVisit, Space, FeedbackSubmission
@@ -78,6 +77,12 @@ def parse_start_end(start:datetime,end:datetime):
 
 # for getting browsers,countires,etc especially the metadatas
 async def get_analytics_metadata(Model, *filters):
+    """ 
+        Having a shared session can cause issues here as 
+        we cant use shared session if all the r equests with same shared session is made
+        So each individual requests should use a separate
+        That's why feedback_data is having their separate session instance
+    """
     METADATA_KEYS=["country", "browser", "os"]
     date_check = and_(*filters)
     async def get_data(group_by_column):
@@ -129,12 +134,6 @@ async def get_feedback_submission_between_range(space_id: str, start: datetime, 
 
 
 async def get_feedback_submission_metadata(space_id: str, start: datetime, end: datetime):
-    """ 
-        Having a shared session can cause issues here as 
-        we cant use shared session if all the r equests with same shared session is made
-        So each individual requests should use a separate
-        That's why feedback_data is having their separate session instance
-    """
     start,end = parse_start_end(start,end)
 
     # Date range filter
@@ -146,5 +145,56 @@ async def get_feedback_submission_metadata(space_id: str, start: datetime, end: 
     )
 
     countries, browsers, os = await get_analytics_metadata(FeedbackSubmission,date_check)
+
+    return {"countries": countries, "browsers": browsers, "os": os}
+
+
+async def get_page_visits_between_range(space_id:str,start:datetime,end:datetime,page_type:str):
+    start,end = parse_start_end(start,end)
+    page_type_query = []
+
+    if page_type == PageType.LANDING_PAGE:
+        page_type_query.append(PageVisit.page_type == PageType.LANDING_PAGE)
+
+    elif page_type == PageType.WALL_OF_FAME:
+        page_type_query.append(PageVisit.page_type == PageType.WALL_OF_FAME)
+    
+    else:
+        return []
+
+    async with sessionmanager.session() as session:
+        date_casted_created_at_col = func.cast(
+            PageVisit.visited_at, DATE)
+        query = select(PageVisit.visited_at, func.count()).where(and_(
+            PageVisit.space_id == space_id,
+            date_casted_created_at_col >= start,
+            date_casted_created_at_col <= end,
+            *page_type_query
+        )
+        ).group_by(PageVisit.visited_at)
+        response = {}
+        feedbacks = (await session.execute(query)).all()
+        for created_at, count in feedbacks:
+            created_at = created_at.strftime(DATETIME_FORMAT)
+            # we are parsing date part so in one date there can be multiple submission
+            # so we are doing addition
+            if created_at in response:
+                response[created_at] += count
+            else:
+                response[created_at] = count
+        return response
+    
+async def get_page_visit_metadata(space_id: str, start: datetime, end: datetime):
+    start,end = parse_start_end(start,end)
+
+    # Date range filter
+    date_casted_created_at_col = func.cast(PageVisit.visited_at, DATE)
+    date_check = and_(
+        PageVisit.space_id == space_id,
+        date_casted_created_at_col >= start,
+        date_casted_created_at_col <= end
+    )
+
+    countries, browsers, os = await get_analytics_metadata(PageVisit,date_check)
 
     return {"countries": countries, "browsers": browsers, "os": os}

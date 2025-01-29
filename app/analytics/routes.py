@@ -7,7 +7,7 @@ from . import analytics_router
 from app.db import DBSessionDep
 from .schema import Event, PageVisitSchema
 from .schema import PageVisitSchema, Event, SpaceType, FeedbackSpaceMetadata, PageType, FeedbackSubmissionSchema,AnalyticsFilterQuery
-from .utils import get_or_create_space, create_page_visit, create_feedback_submission, get_sentiment_score, calculate_new_avg, get_space , get_feedback_submission_between_range,get_feedback_submission_metadata
+from .utils import get_or_create_space, create_page_visit, create_feedback_submission, get_sentiment_score, calculate_new_avg, get_space , get_feedback_submission_between_range,get_feedback_submission_metadata,get_page_visits_between_range,get_page_visit_metadata
 from app.logger import get_logger
 from datetime import datetime
 
@@ -93,23 +93,21 @@ async def create_feedback_analytics(session: DBSessionDep, payload: Payload):
 @analytics_router.get("/feedback/{space_id}")
 async def get_feedback_analytics(session: DBSessionDep, space_id: str,query:Annotated[AnalyticsFilterQuery,Depends(AnalyticsFilterQuery)]):
     event = query.event
+    visit = query.visit
     query_payload = query.model_dump()
     start = query_payload.get("start")
     end = query_payload.get("end")
 
     try:
+        space = await get_space(session, space_id=space_id, lock=False)
+        if not space:
+            return Response(status_code=404)
         if not event:
             """
                 In case of analytics the reads can be dirty or a bit non updated as well as we dont need real time data to show
             """
 
-            space = await get_space(session, space_id=space_id, lock=False)
-            if not space:
-                return Response(status_code=404)
-
             return ({"success": True, "data": space.space_metadata})
-        if event == Event.VISIT:
-            pass
 
         if event == Event.SUBMIT:
             # shared session can't be used with concurrent requests in sqlalchemy
@@ -121,7 +119,16 @@ async def get_feedback_analytics(session: DBSessionDep, space_id: str,query:Anno
                 feedbacks,
                 feedbacks_metadata
             )
-            return JSONResponse({"feedbacks":feedbacks,"metadata":feedbacks_metadata},status_code=200)
+            return JSONResponse({"success":True,"feedbacks":feedbacks,"metadata":feedbacks_metadata},status_code=200)
+        
+        if event == Event.VISIT:
+            """
+                metadata,visits
+            """
+            page_visits = get_page_visits_between_range(space_id,start,end,visit)
+            page_visits_metadata = get_feedback_submission_metadata(space_id,start,end)
+            page_visits,page_visits_metadata = await asyncio.gather(page_visits,page_visits_metadata)
+            return JSONResponse({"success":True,"page":visit.value,"visits":page_visits,"metadata":page_visits_metadata},status_code=200)
     except Exception as e:
         logger.exception(e)
-        return
+        return JSONResponse({"success":False},status_code=500)
