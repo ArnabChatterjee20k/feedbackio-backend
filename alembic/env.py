@@ -40,9 +40,9 @@ def run_migrations_offline() -> None:
 
     """
     import os
-    url = os.getenv("DB_URL")
+    url = os.getenv("ASYNC_DB_URL")
     if not url:
-        raise ValueError("DB_URL is not set in env")
+        raise ValueError("ASYNC_DB_URL is not set in env")
     context.configure(
         url=url,
         target_metadata=target_metadata,
