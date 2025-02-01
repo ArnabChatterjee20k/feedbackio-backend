@@ -56,3 +56,71 @@ https://readmedium.com/how-to-use-sqlalchemy-to-make-database-requests-asynchron
 So use .all() and it will return a Row() which is a tuple. Here we have to use indexing to get the data
 
 * If we select the entire object select(Model) then .scalars().all() will give list of the Model and we directly extract properties by dot(.)
+
+### supabase session pooler and transaction pooler
+* session pooler -> serverful application
+* transaction pooler -> serverless application
+> Here session pooler will be used
+
+### if using serverless and transaction pooling then prepared_statement_cache_size issue with pgbouncer(supabase uses it)
+https://docs.sqlalchemy.org/en/14/dialects/postgresql.html#prepared-statement-cache
+https://github.com/sqlalchemy/sqlalchemy/issues/6467
+* Have these changes
+```
+uri = postgresql+asyncpg://postgres:arnab@127.0.0.1:5432/medimyth?prepared_statement_cache_size=0
+```
+```python
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncConnection, async_sessionmaker, create_async_engine
+from sqlalchemy import NullPool
+from fastapi import Depends
+from typing import Annotated
+from typing import AsyncIterator, Any
+import contextlib
+from sqlalchemy.orm import DeclarativeBase
+import os
+
+from uuid import uuid4
+
+from asyncpg import Connection
+
+
+class CConnection(Connection):
+    def _get_unique_id(self, prefix: str) -> str:
+        return f'__asyncpg_{prefix}_{uuid4()}__'
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class DBSessionManager:
+    def __init__(self, host: str, engine_kwargs: dict[str, Any]):
+        self._engine = create_async_engine(host, connect_args={
+                                           'statement_cache_size': 0, 'connection_class': CConnection}, **engine_kwargs)
+        self._sessionmaker = async_sessionmaker(
+            autocommit=False, bind=self._engine)
+
+    @contextlib.asynccontextmanager
+    async def session(self) -> AsyncIterator[AsyncConnection]:
+        if self._sessionmaker is None:
+            raise Exception("DatabaseSessionManager is not initialized")
+        session = self._sessionmaker()
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.rollback()
+
+
+database_url = os.environ.get("ASYNC_DB_URL")
+sessionmanager = DBSessionManager(database_url, {"echo": False})
+
+
+async def get_db_session():
+    async with sessionmanager.session() as session:
+        yield session
+DBSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
+
+```

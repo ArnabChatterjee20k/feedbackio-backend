@@ -62,6 +62,9 @@ async def get_or_create_space(session: AsyncSession, space_id: str):
     return space
 
 def parse_start_end(start:datetime,end:datetime):
+    if not start:
+        start = datetime.now()
+        end = datetime.now()
     date_difference = abs(start-end).days
     if date_difference == 0:
         end = start + timedelta(hours=24)
@@ -69,9 +72,9 @@ def parse_start_end(start:datetime,end:datetime):
     if start > end:
         end = start + timedelta(hours=24)
 
-    # data will not be shown more than 30 days
-    if date_difference > 30:
-        end = start + timedelta(days=30)
+    # data will not be shown more than 60 days
+    if date_difference > 60:
+        end = start + timedelta(days=60)
 
     return start,end
 
